@@ -1,0 +1,43 @@
+{
+  "encoder": "all-MiniLM-L6-v2",
+  "best_model": "mlp",
+  "rows": {
+    "train": 50483,
+    "validation": 6310,
+    "test": 6311
+  },
+  "validation": {
+    "knn_k5": {
+      "val_accuracy": 0.6426,
+      "val_f1": 0.6353
+    },
+    "knn_k25": {
+      "val_accuracy": 0.6632,
+      "val_f1": 0.6551
+    },
+    "logistic_regression": {
+      "val_accuracy": 0.6604,
+      "val_f1": 0.6462
+    },
+    "mlp": {
+      "val_accuracy": 0.7025,
+      "val_f1": 0.6818
+    }
+  },
+  "test_accuracy": 0.7061,
+  "test_f1": 0.6869,
+  "test_accuracy_by_source": {
+    "headlines": {
+      "rows": 2851,
+      "accuracy": 0.7934
+    },
+    "reddit": {
+      "rows": 3000,
+      "accuracy": 0.63
+    },
+    "tweets": {
+      "rows": 460,
+      "accuracy": 0.6609
+    }
+  }
+}

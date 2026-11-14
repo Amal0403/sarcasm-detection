@@ -1,83 +1,95 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import classification_report, accuracy_score
-from sentence_transformers import SentenceTransformer
+"""Predict whether a sentence is sarcastic.
 
-# Step 1: Load Twitter Dataset
+Interactive:   python sarcasm_detector.py
+One-off:       python sarcasm_detector.py "Oh great, another Monday."
 
-data_file = "twitter_training.csv"
+Uses the fine-tuned transformer from finetune.py when it exists, and otherwise
+falls back to the lighter embedding classifier from train.py.
+"""
 
-# Load CSV (no header)
-df = pd.read_csv(data_file, header=None)
-df.columns = ["tweet_id", "entity", "sentiment", "Sentence"]
+import sys
+from pathlib import Path
 
-print("Dataset loaded successfully! Shape:", df.shape)
-print(df.head())
-
-# Step 2: Convert sentiment to binary label
-
-# Example mapping: negative/sarcastic → 1, others → 0
-df["Label"] = df["sentiment"].apply(
-    lambda x: 1 if str(x).lower() in ["negative", "sarcastic", "sarcasm"] else 0
-)
-
-df = df[["Sentence", "Label"]]
-
-print("\n Data after preprocessing:")
-print(df.head())
+MODEL_DIR = Path(__file__).parent / "model"
+FINETUNED_DIR = MODEL_DIR / "finetuned"
+CLASSIFIER_FILE = MODEL_DIR / "sarcasm_model.joblib"
 
 
-# Step 3: Extract features and labels
+class SarcasmDetector:
+    def __init__(self):
+        if (FINETUNED_DIR / "config.json").exists():
+            self._load_finetuned()
+        elif CLASSIFIER_FILE.exists():
+            self._load_classifier()
+        else:
+            raise SystemExit("No trained model found. Run: python prepare_data.py, then python train.py")
 
-X = df["Sentence"].astype(str).tolist()
-y = df["Label"]
+    def _load_finetuned(self) -> None:
+        import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(FINETUNED_DIR)
+        model = AutoModelForSequenceClassification.from_pretrained(FINETUNED_DIR)
+        model.eval()
+
+        def probability(text: str) -> float:
+            enc = tokenizer([text], truncation=True, max_length=64, return_tensors="pt")
+            with torch.no_grad():
+                return float(torch.softmax(model(**enc).logits, dim=-1)[0, 1])
+
+        self.name = "fine-tuned MiniLM"
+        self._probability = probability
+
+    def _load_classifier(self) -> None:
+        import joblib
+        from sentence_transformers import SentenceTransformer
+
+        saved = joblib.load(CLASSIFIER_FILE)
+        classifier = saved["classifier"]
+        encoder = SentenceTransformer(saved["encoder"])
+
+        def probability(text: str) -> float:
+            vector = encoder.encode([text], normalize_embeddings=True)
+            return float(classifier.predict_proba(vector)[0][1])
+
+        self.name = f"MiniLM embeddings + {saved['name']}"
+        self._probability = probability
+
+    def predict(self, text: str) -> tuple[bool, float]:
+        """Return (is_sarcastic, probability that the text is sarcastic)."""
+        probability = self._probability(text)
+        return probability >= 0.5, probability
 
 
-# Step 4: Load SentenceTransformer model
-
-print("\n Loading SentenceTransformer model...")
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# Step 5: Encode dataset into embeddings
-
-print("\nEncoding sentences into embeddings...")
-X_vectors = model.encode(X, batch_size=32, show_progress_bar=True)
+def describe(text: str, detector: SarcasmDetector) -> str:
+    sarcastic, probability = detector.predict(text)
+    label = "Sarcastic" if sarcastic else "Not sarcastic"
+    confidence = probability if sarcastic else 1 - probability
+    return f"{label}  (confidence {confidence:.0%})"
 
 
-# Step 6: Train-Test Split
+def main() -> None:
+    print("Loading model...")
+    detector = SarcasmDetector()
+    print(f"Using: {detector.name}")
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X_vectors, y, test_size=0.2, random_state=42, stratify=y
-)
+    if len(sys.argv) > 1:
+        print(describe(" ".join(sys.argv[1:]), detector))
+        return
 
-# Step 7: Train KNN Classifier
+    print("Type a sentence to check it for sarcasm. Type 'exit' to quit.\n")
+    while True:
+        try:
+            text = input(">> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if text.lower() in {"exit", "quit"}:
+            break
+        if not text:
+            continue
+        print(describe(text, detector) + "\n")
 
-print("\nTraining KNN Classifier...")
-knn = KNeighborsClassifier(n_neighbors=5, n_jobs=-1)
-knn.fit(X_train, y_train)
 
-# Step 8: Evaluate Model
-
-y_pred = knn.predict(X_test)
-print("\nModel Evaluation:")
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("\nClassification Report:\n", classification_report(y_test, y_pred))
-
-# Step 9: Interactive Prediction
-
-print("\n🤖 Type any sentence to check if it's sarcastic (type 'exit' to quit)\n")
-
-while True:
-    user_input = input(">> ")
-    if user_input.lower() == "exit":
-        print("Exiting... Goodbye!")
-        break
-
-    user_vector = model.encode([user_input])
-    prediction = knn.predict(user_vector)[0]
-
-    if prediction == 1:
-        print("This sentence is **Sarcastic / Negative**!\n")
-    else:
-        print("This sentence is **Not Sarcastic / Positive**.\n")
+if __name__ == "__main__":
+    main()

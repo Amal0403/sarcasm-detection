@@ -1,0 +1,27 @@
+﻿# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Downloaded data and cached embeddings (rebuilt by prepare_data.py and train.py)
+data/
+
+# Logs
+train_log.txt
+
+# OS files
+.DS_Store
+
+# VS Code / PyCharm
+.vscode/
+.idea/
+
+# Fine-tuned transformer weights (about 87 MB; rebuilt by finetune.py)
+model/finetuned/
+
+# Logs
+finetune_log.txt

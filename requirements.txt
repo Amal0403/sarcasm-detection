@@ -1,6 +1,7 @@
-pandas
-scikit-learn
 sentence-transformers
-numpy
+scikit-learn
 torch
-tqdm
+numpy
+joblib
+pyarrow
+huggingface_hub

@@ -1,0 +1,40 @@
+{
+  "base_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "epochs": 3,
+  "rows": {
+    "train": 50483,
+    "validation": 6310,
+    "test": 6311
+  },
+  "validation_history": [
+    {
+      "epoch": 1,
+      "val_accuracy": 0.794
+    },
+    {
+      "epoch": 2,
+      "val_accuracy": 0.8079
+    },
+    {
+      "epoch": 3,
+      "val_accuracy": 0.8081
+    }
+  ],
+  "test_accuracy": 0.8133,
+  "test_f1": 0.8051,
+  "test_accuracy_by_source": {
+    "headlines": {
+      "rows": 2851,
+      "accuracy": 0.9183
+    },
+    "reddit": {
+      "rows": 3000,
+      "accuracy": 0.732
+    },
+    "tweets": {
+      "rows": 460,
+      "accuracy": 0.6935
+    }
+  },
+  "training_minutes": 63.6
+}
